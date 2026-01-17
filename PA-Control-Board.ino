@@ -36,24 +36,17 @@ const uint8_t RELAY_PINS[8] = {8, 9, 10, 11, 12, 13, 14, 15};
 const uint8_t PIN_TR      = 20; // IO20 (TR)
 const uint8_t PIN_FH_CLK  = 21; // IO21 (FH_CLK)
 
-// SPI timing / settings
-const uint32_t SPI_SPEED = 1000000; // 1 MHz default (adjust as required)
-const uint8_t  SPI_MODE  = SPI_MODE0; // CPOL=0, CPHA=0
-// Bit-bang SPI timing (used for 10-bit transfers)
-const unsigned int SPI_HALF_CLOCK_US = 2;   // 2 µs → ~250 kHz clock
-// ---------------------------------
-
 String lineBuf = "";
 bool toggleTR = false;
 long lastToggleMillis;
 const int TOGGLE_DELAY = 1000;
 
-SPISettings spisettings(1000000, MSBFIRST, SPI_MODE0);
+// SPISettings spisettings(300000, MSBFIRST, SPI_MODE0);
 // SPISettings spisettings(1000000, MSBFIRST, SPI_MODE1);
 // SPISettings spisettings(1000000, MSBFIRST, SPI_MODE2);
 // SPISettings spisettings(1000000, MSBFIRST, SPI_MODE3);
 
-// SPISettings spisettings(1000000, LSBFIRST, SPI_MODE0);
+SPISettings spisettings(300000, LSBFIRST, SPI_MODE0);
 // SPISettings spisettings(1000000, LSBFIRST, SPI_MODE1);
 // SPISettings spisettings(1000000, LSBFIRST, SPI_MODE2);
 // SPISettings spisettings(1000000, LSBFIRST, SPI_MODE3);
@@ -134,18 +127,20 @@ void handle_SPICMD(const String &arg)
         SPI.transfer(tx[i]);
     }
 
-    digitalWrite(PIN_SPI_CS, HIGH);
-    SPI.endTransaction();
+    handle_SPIACK();
 
-    Serial.print("OK\r\n");
+    // digitalWrite(PIN_SPI_CS, HIGH);
+    // SPI.endTransaction();
+
+    // Serial.print("OK\r\n");
 }
 
 void handle_SPIACK()
 {
     uint8_t rx[10];
     
-    SPI.beginTransaction(spisettings);
-    digitalWrite(PIN_SPI_CS, LOW);
+    // SPI.beginTransaction(spisettings);
+    // digitalWrite(PIN_SPI_CS, LOW);
     for (int i = 0; i < 10; i++) {
         rx[i] = SPI.transfer(0x00);
     }
