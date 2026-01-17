@@ -52,36 +52,15 @@ const int TOGGLE_DELAY = 1000;
 static inline void csSelect()  { digitalWrite(PIN_SPI_CS, LOW);  }
 static inline void csDeselect(){ digitalWrite(PIN_SPI_CS, HIGH); }
 
-// Uses same pins and timing style as your earlier bit-bang version.
-// CPOL=0, CPHA=0, MSB first, 10 bits.
-uint16_t spiTransfer10_bitbang(uint16_t tx)
-{
-  tx &= 0x03FF;     // keep only 10 bits
-  uint16_t rx = 0;
+SPISettings spisettings(1000000, MSBFIRST, SPI_MODE0);
+// SPISettings spisettings(1000000, MSBFIRST, SPI_MODE1);
+// SPISettings spisettings(1000000, MSBFIRST, SPI_MODE2);
+// SPISettings spisettings(1000000, MSBFIRST, SPI_MODE3);
 
-  csSelect();       // digitalWrite(PIN_SPI_CS, LOW);
-  delayMicroseconds(SPI_HALF_CLOCK_US);
-
-  for (int bit = 9; bit >= 0; --bit) {
-    // Set MOSI
-    digitalWrite(PIN_SPI_MOSI, (tx >> bit) & 1);
-
-    // Rising edge: slave samples MOSI, we will sample MISO
-    digitalWrite(PIN_SPI_SCK, HIGH);
-    delayMicroseconds(SPI_HALF_CLOCK_US);
-
-    // Sample MISO
-    rx <<= 1;
-    if (digitalRead(PIN_SPI_MISO)) rx |= 1;
-
-    // Falling edge
-    digitalWrite(PIN_SPI_SCK, LOW);
-    delayMicroseconds(SPI_HALF_CLOCK_US);
-  }
-
-  csDeselect();     // digitalWrite(PIN_SPI_CS, HIGH);
-  return (rx & 0x03FF);   // only 10 bits are valid
-}
+// SPISettings spisettings(1000000, LSBFIRST, SPI_MODE0);
+// SPISettings spisettings(1000000, LSBFIRST, SPI_MODE1);
+// SPISettings spisettings(1000000, LSBFIRST, SPI_MODE2);
+// SPISettings spisettings(1000000, LSBFIRST, SPI_MODE3);
 
 uint16_t spiTransfer16_hw(uint16_t tx) {
   SPISettings settings(SPI_SPEED, MSBFIRST, SPI_MODE);
@@ -126,25 +105,6 @@ void handle_AT() {
   Serial.print("OK\r\n");
 }
 
-void handle_SPI(const String &arg) {
-  bool ok; uint32_t v = parseNumber(arg, ok);
-  if (!ok) {
-    Serial.print("ERR:BADNUM\r\n");
-    return;
-  }
-
-  // uint16_t tx = (uint16_t)(v & 0xFFFF);
-  uint16_t tx10 = (uint16_t)(v & 0x03FF);
-
-  // uint16_t rx = spiTransfer16_hw(tx);
-  uint16_t rx10 = spiTransfer10_bitbang(tx10);
-
-  char buf[32];
-  // sprintf(buf, "OK+SPI=0x%04X\r\n", rx);
-  sprintf(buf, "OK\nRESPONSE=0x%03X\r\n", rx10 & 0x03FF);
-  Serial.print(buf);
-}
-
 void handle_SPICMD(const String &arg)
 {
     uint8_t tx[10];
@@ -184,11 +144,15 @@ void handle_SPICMD(const String &arg)
         return;
     }
 
+    SPI.beginTransaction(spisettings);
     digitalWrite(PIN_SPI_CS, LOW);
+
     for (int i = 0; i < 10; i++) {
         SPI.transfer(tx[i]);
     }
+
     digitalWrite(PIN_SPI_CS, HIGH);
+    SPI.endTransaction();
 
     Serial.print("OK\r\n");
 }
@@ -196,15 +160,30 @@ void handle_SPICMD(const String &arg)
 void handle_SPIACK()
 {
     uint8_t rx[10];
-
+    
+    SPI.beginTransaction(spisettings);
     digitalWrite(PIN_SPI_CS, LOW);
     for (int i = 0; i < 10; i++) {
         rx[i] = SPI.transfer(0x00);
     }
     digitalWrite(PIN_SPI_CS, HIGH);
+    SPI.endTransaction();
 
     Serial.print("OK\r\nACK=");
     for (int i = 0; i < 10; i++) {
+        if(i == 0) {
+          if((rx[i] == 0x41) || (rx[i] == 0x61)) {
+            Serial.print("A ");
+            continue;
+          }
+        }
+        else if (i == 1) {
+          if((rx[i] == 0x74) || (rx[i] == 0x54)) {
+            Serial.print("T ");
+            continue;
+          }
+        }
+        Serial.print("0x");
         if (rx[i] < 0x10) Serial.print('0');
         Serial.print(rx[i], HEX);
         Serial.print(' ');
@@ -350,16 +329,11 @@ void handle_TR(const String &arg) {
 
 void setup_pins() {
   // Initialize hardware SPI (use default pins for SPI0 on rp2040 core)
-  SPI.begin(); // NOTE: rp2040 core's SPI.begin() expects no pin arguments
-
-  // Configure CS separately
-  pinMode(PIN_SPI_CS, OUTPUT);
-  digitalWrite(PIN_SPI_CS, HIGH);
-
-  pinMode(PIN_SPI_MISO, INPUT);
-  pinMode(PIN_SPI_MOSI, OUTPUT);
-  pinMode(PIN_SPI_SCK, OUTPUT);
-  digitalWrite(PIN_SPI_SCK, LOW);
+  SPI.setRX(PIN_SPI_MISO);
+  SPI.setCS(PIN_SPI_CS);
+  SPI.setSCK(PIN_SPI_SCK);
+  SPI.setTX(PIN_SPI_MOSI);
+  SPI.begin(true);
 
   pinMode(PIN_LED_R, OUTPUT); digitalWrite(PIN_LED_R, LOW);
   pinMode(PIN_LED_G, OUTPUT); digitalWrite(PIN_LED_G, LOW);
@@ -391,9 +365,8 @@ void processLine(const String &ln) {
   cmd.trim(); arg = trimStr(arg);
   cmd.toUpperCase();
 
-  if (cmd == "SPI") handle_SPI(arg);
   if (cmd == "SPICMD") handle_SPICMD(arg);
-  if (cmd == "SPIACK") handle_SPIACK();
+  else if (cmd == "SPIACK") handle_SPIACK();
   else if (cmd == "LED") handle_LED(arg);
   else if (cmd == "RELAY") handle_RELAY(arg);
   else if (cmd == "IO") handle_IO(arg);
