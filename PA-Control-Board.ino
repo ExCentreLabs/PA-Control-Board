@@ -48,10 +48,6 @@ bool toggleTR = false;
 long lastToggleMillis;
 const int TOGGLE_DELAY = 1000;
 
-// ---------- helpers ----------
-static inline void csSelect()  { digitalWrite(PIN_SPI_CS, LOW);  }
-static inline void csDeselect(){ digitalWrite(PIN_SPI_CS, HIGH); }
-
 SPISettings spisettings(1000000, MSBFIRST, SPI_MODE0);
 // SPISettings spisettings(1000000, MSBFIRST, SPI_MODE1);
 // SPISettings spisettings(1000000, MSBFIRST, SPI_MODE2);
@@ -61,19 +57,6 @@ SPISettings spisettings(1000000, MSBFIRST, SPI_MODE0);
 // SPISettings spisettings(1000000, LSBFIRST, SPI_MODE1);
 // SPISettings spisettings(1000000, LSBFIRST, SPI_MODE2);
 // SPISettings spisettings(1000000, LSBFIRST, SPI_MODE3);
-
-uint16_t spiTransfer16_hw(uint16_t tx) {
-  SPISettings settings(SPI_SPEED, MSBFIRST, SPI_MODE);
-
-  uint16_t rx = 0;
-  digitalWrite(PIN_SPI_CS, LOW);            // select (active low)
-  SPI.beginTransaction(settings);
-  // SPI.transfer16 returns an uint16_t on this core
-  rx = SPI.transfer16(tx);
-  SPI.endTransaction();
-  digitalWrite(PIN_SPI_CS, HIGH);           // deselect
-  return rx;
-}
 
 String trimStr(const String &s) {
   int i=0, j=s.length()-1;
