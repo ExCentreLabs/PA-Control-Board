@@ -1,20 +1,18 @@
-// PA-Control-Board.ino
-// RP2040 (rpipico) AT-command firmware with hardware SPI
-
 /*
-AT → replies OK
+  AT → replies OK
 
-AT+SPI=0xABCD → sends 0xABCD to the SPI device, reads 16-bit reply and replies OK+SPI=0x1234
+  AT+SPICMD=0x08,0x01,0x03,0x05,0x08,0x00,0x02,0x02 → sends 'A' 'T' 0x08 0x01 0x03 0x05 0x08 0x00 0x02 0x02 to the SPI device
+  reads 16-bit response and replies OK\nACK=0x09 0x00 0x00 0x00 0x00 0x00 0x00 0x00
 
-AT+LED=R,ON or AT+LED=B,OFF → control single LED
+  AT+LED=R,ON or AT+LED=B,OFF → control single LED
 
-AT+LED=RGB,101 → R=1, G=0, B=1 (1=ON, 0=OFF)
+  AT+LED=RGB,101 → R=1, G=0, B=1 (1=ON, 0=OFF)
 
-AT+RELAY=3,ON → turn relay #3 (GPIO10) ON
+  AT+RELAY=3,ON → turn relay #3 (GPIO10) ON
 
-AT+IO=20,HIGH → set GPIO20 HIGH (or LOW)
+  AT+IO=20,HIGH → set GPIO20 HIGH (or LOW)
 
-AT+TR=HIGH and AT+FH_CLK=LOW → shortcuts for IO20/21
+  AT+TR=HIGH and AT+FH_CLK=LOW → shortcuts for IO20/21
 */
 
 #include <Arduino.h>
